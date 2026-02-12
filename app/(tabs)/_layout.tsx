@@ -32,7 +32,14 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="gift.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="surprisedex"
+        options={{
+          title: "SurpriseDex",
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="book.fill" color={color} />,
         }}
       />
     </Tabs>

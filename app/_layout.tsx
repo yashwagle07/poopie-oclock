@@ -18,6 +18,8 @@ import type { EdgeInsets, Metrics, Rect } from "react-native-safe-area-context";
 
 import { trpc, createTRPCClient } from "@/lib/trpc";
 import { initManusRuntime, subscribeSafeAreaInsets } from "@/lib/_core/manus-runtime";
+import { addNotificationResponseListener } from "@/lib/notifications";
+import { useRouter } from "expo-router";
 
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -27,6 +29,7 @@ export const unstable_settings = {
 };
 
 export default function RootLayout() {
+  const router = useRouter();
   const initialInsets = initialWindowMetrics?.insets ?? DEFAULT_WEB_INSETS;
   const initialFrame = initialWindowMetrics?.frame ?? DEFAULT_WEB_FRAME;
 
@@ -36,6 +39,18 @@ export default function RootLayout() {
   // Initialize Manus runtime for cookie injection from parent container
   useEffect(() => {
     initManusRuntime();
+  }, []);
+
+  // Handle notification taps
+  useEffect(() => {
+    const subscription = addNotificationResponseListener((response) => {
+      const surpriseId = response.notification.request.content.data.surpriseId;
+      if (surpriseId) {
+        router.push(`/play/${surpriseId}` as any);
+      }
+    });
+
+    return () => subscription.remove();
   }, []);
 
   const handleSafeAreaUpdate = useCallback((metrics: Metrics) => {
