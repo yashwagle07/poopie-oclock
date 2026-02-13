@@ -180,7 +180,7 @@ export default function HomeScreen() {
                   <View className="items-center gap-4">
                     <IconSymbol name="gift.fill" size={80} color={colors.background} />
                     <Text
-                      className="text-2xl font-bold text-center px-4"
+                      className="text-lg font-bold text-center px-4"
                       style={{ color: colors.background }}
                     >
                       Arm a Surprise
