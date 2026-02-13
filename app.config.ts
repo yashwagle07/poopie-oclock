@@ -28,11 +28,11 @@ const schemeFromBundleId = `manus${timestamp}`;
 
 const env = {
   // App branding - update these values directly (do not use env vars)
-  appName: "Surprise Sounds",
+  appName: "Poopie O'clock",
   appSlug: "surprise-sounds",
   // S3 URL of the app logo - set this to the URL returned by generate_image when creating custom logo
   // Leave empty to use the default icon from assets/images/icon.png
-  logoUrl: "https://private-us-east-1.manuscdn.com/sessionFile/crgiMBCwmYIFreT0Ggsbik/sandbox/aPcqi8uabYHcDNbSNigGrS-img-1_1770917626000_na1fn_c3VycHJpc2Utc291bmRzLWxvZ28.png?x-oss-process=image/resize,w_1920,h_1920/format,webp/quality,q_80&Expires=1798761600&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9wcml2YXRlLXVzLWVhc3QtMS5tYW51c2Nkbi5jb20vc2Vzc2lvbkZpbGUvY3JnaU1CQ3dtWUlGcmVUMEdnc2Jpay9zYW5kYm94L2FQY3FpOHVhYllIY0ROYlNOaWdHclMtaW1nLTFfMTc3MDkxNzYyNjAwMF9uYTFmbl9jM1Z5Y0hKcGMyVXRjMjkxYm1SekxXeHZaMjgucG5nP3gtb3NzLXByb2Nlc3M9aW1hZ2UvcmVzaXplLHdfMTkyMCxoXzE5MjAvZm9ybWF0LHdlYnAvcXVhbGl0eSxxXzgwIiwiQ29uZGl0aW9uIjp7IkRhdGVMZXNzVGhhbiI6eyJBV1M6RXBvY2hUaW1lIjoxNzk4NzYxNjAwfX19XX0_&Key-Pair-Id=K2HSFNDJXOU9YS&Signature=tG9gIhGkzRLUvHJLP81TTenj3qsLlQkG3Ea~CKxK5bQ0MnsfeYs-6U0pF3K3upRFQCVw1~GeY0KJFJfjXa5VAKSizq2mwpoqm9-sCvFSpkv14kTfRqpJRG6fbm~Z5QKNxBgrw-msWk-dzOO424oVtE49fsBeFcNkTMiBx480c0gX4J-mCQRCqUgTeBJKfUTVGDPLzlgTN-g711~jwd2EVFr3a2Xd5okeAuZbsS~1d5~acbMcsPa5wrEG6EmTNgBz32KaACXTwcuZxrextZWwSpS~2UL-N~Pr5A-Hh9~d-Ej~rxx9-xQeI4n936PyAuV8xxZsA2osxcaD8uD~Yhup~Q__",
+  logoUrl: "",
   scheme: schemeFromBundleId,
   iosBundleId: bundleId,
   androidPackage: bundleId,
@@ -56,7 +56,7 @@ const config: ExpoConfig = {
   },
   android: {
     adaptiveIcon: {
-      backgroundColor: "#E6F4FE",
+      backgroundColor: "#1a1a2e",
       foregroundImage: "./assets/images/android-icon-foreground.png",
       backgroundImage: "./assets/images/android-icon-background.png",
       monochromeImage: "./assets/images/android-icon-monochrome.png",
@@ -105,9 +105,9 @@ const config: ExpoConfig = {
         image: "./assets/images/splash-icon.png",
         imageWidth: 200,
         resizeMode: "contain",
-        backgroundColor: "#ffffff",
+        backgroundColor: "#1a1a2e",
         dark: {
-          backgroundColor: "#000000",
+          backgroundColor: "#1a1a2e",
         },
       },
     ],

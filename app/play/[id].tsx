@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator, Platform } from "react-native";
+import { useEffect, useState, useRef } from "react";
+import { View, Text, TouchableOpacity, ActivityIndicator, Platform, Animated } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import Animated, { useSharedValue, useAnimatedStyle, withSpring, withRepeat } from "react-native-reanimated";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -18,6 +17,12 @@ export default function PlaySurpriseScreen() {
   const { isAuthenticated } = useAuth();
   const [hasPlayed, setHasPlayed] = useState(false);
   const [unlockResult, setUnlockResult] = useState<{ isNew: boolean; message: string } | null>(null);
+
+  // Animation refs
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const celebrationScale = useRef(new Animated.Value(0)).current;
+  const rotationAnim = useRef(new Animated.Value(0)).current;
 
   // Fetch surprise details
   const { data: surprise, isLoading } = trpc.surprises.getById.useQuery(
@@ -42,21 +47,55 @@ export default function PlaySurpriseScreen() {
       if (data.isNew && Platform.OS !== "web") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
+
+      // Trigger celebration animation
+      if (data.isNew) {
+        Animated.spring(celebrationScale, {
+          toValue: 1,
+          useNativeDriver: true,
+        }).start();
+      }
     },
   });
 
-  // Animation values
-  const scale = useSharedValue(1);
-  const rotation = useSharedValue(0);
-
+  // Initial fade in
   useEffect(() => {
-    // Pulsing animation for gift box
-    scale.value = withRepeat(withSpring(1.1, { damping: 2 }), -1, true);
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }, []);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }, { rotate: `${rotation.value}deg` }],
-  }));
+  // Rotation animation for gift box
+  useEffect(() => {
+    if (!hasPlayed) {
+      const rotationAnimation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(rotationAnim, {
+            toValue: 1,
+            duration: 3000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(rotationAnim, {
+            toValue: 0,
+            duration: 3000,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      rotationAnimation.start();
+
+      return () => rotationAnimation.stop();
+    }
+  }, [hasPlayed]);
 
   const handlePlay = async () => {
     if (!isAuthenticated || !surprise || !sound) {
@@ -107,7 +146,8 @@ export default function PlaySurpriseScreen() {
         </Text>
         <TouchableOpacity
           onPress={() => router.push("/(tabs)/" as any)}
-          className="mt-4 px-6 py-3 rounded-full bg-primary"
+          className="mt-4 px-6 py-3 rounded-full"
+          style={{ backgroundColor: colors.primary }}
         >
           <Text className="text-white font-semibold">Go Home</Text>
         </TouchableOpacity>
@@ -115,118 +155,184 @@ export default function PlaySurpriseScreen() {
     );
   }
 
+  const rotation = rotationAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
+
   return (
     <ScreenContainer className="p-6">
-      <View className="flex-1 items-center justify-center gap-8">
-        {/* Gift Box Icon */}
-        {!hasPlayed && (
-          <Animated.View style={animatedStyle}>
-            <IconSymbol name="gift.fill" size={120} color={colors.primary} />
-          </Animated.View>
-        )}
+      <Animated.View
+        style={{ opacity: fadeAnim }}
+        className="flex-1 items-center justify-between"
+      >
+        {/* Top Spacer */}
+        <View />
 
-        {/* Title */}
-        <View className="items-center gap-2">
-          <Text className="text-3xl font-bold text-foreground text-center">
-            {hasPlayed ? sound.title : "Your Surprise is Ready!"}
-          </Text>
-          {sound.description && hasPlayed && (
-            <Text className="text-base text-muted text-center px-8">
-              {sound.description}
+        {/* Main Content */}
+        <View className="items-center gap-8 flex-1 justify-center">
+          {/* Gift Box Icon with Rotation */}
+          {!hasPlayed && (
+            <Animated.View
+              style={{
+                transform: [
+                  { scale: scaleAnim },
+                  { rotate: rotation },
+                ],
+              }}
+            >
+              <IconSymbol name="gift.fill" size={140} color={colors.primary} />
+            </Animated.View>
+          )}
+
+          {/* Title */}
+          <View className="items-center gap-3">
+            <Text
+              className="text-4xl font-black text-center"
+              style={{ color: colors.foreground }}
+            >
+              {hasPlayed ? sound.title : "Your Surprise is Ready!"}
+            </Text>
+            {sound.description && hasPlayed && (
+              <Text
+                className="text-base text-center px-4"
+                style={{ color: colors.muted }}
+              >
+                {sound.description}
+              </Text>
+            )}
+          </View>
+
+          {/* Play Button or Unlock Result */}
+          {!hasPlayed ? (
+            <TouchableOpacity
+              onPress={handlePlay}
+              disabled={!isReady}
+              className="w-48 h-48 rounded-full items-center justify-center shadow-2xl"
+              style={{
+                backgroundColor: colors.primary,
+                opacity: isReady ? 1 : 0.6,
+              }}
+              activeOpacity={0.9}
+            >
+              {!isReady ? (
+                <ActivityIndicator size="large" color={colors.background} />
+              ) : (
+                <View className="items-center gap-3">
+                  <IconSymbol name="play.circle.fill" size={80} color={colors.background} />
+                  <Text
+                    className="text-white text-lg font-bold"
+                    style={{ color: colors.background }}
+                  >
+                    Tap to Play
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          ) : unlockResult ? (
+            <Animated.View
+              style={{
+                transform: [{ scale: celebrationScale }],
+              }}
+              className="items-center gap-4 px-6"
+            >
+              {unlockResult.isNew ? (
+                <>
+                  <Text className="text-6xl">🎉</Text>
+                  <Text
+                    className="text-2xl font-black text-center"
+                    style={{ color: colors.primary }}
+                  >
+                    New Sound Unlocked!
+                  </Text>
+                  <View
+                    className="rounded-2xl p-6 border-2 w-full items-center"
+                    style={{ borderColor: colors.primary }}
+                  >
+                    <Text
+                      className="text-lg font-bold text-center"
+                      style={{ color: colors.foreground }}
+                    >
+                      {sound.title}
+                    </Text>
+                    {sound.rarity && (
+                      <View
+                        className="mt-3 px-4 py-2 rounded-full"
+                        style={{
+                          backgroundColor:
+                            sound.rarity === "legendary"
+                              ? "#FFD700"
+                              : sound.rarity === "rare"
+                              ? colors.primary
+                              : colors.muted,
+                        }}
+                      >
+                        <Text
+                          className="text-sm font-bold"
+                          style={{
+                            color:
+                              sound.rarity === "legendary" ? "#000" : colors.background,
+                          }}
+                        >
+                          {sound.rarity.toUpperCase()}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Text className="text-5xl">😄</Text>
+                  <Text
+                    className="text-xl font-bold text-center"
+                    style={{ color: colors.muted }}
+                  >
+                    You've heard this one before!
+                  </Text>
+                </>
+              )}
+            </Animated.View>
+          ) : null}
+
+          {audioError && (
+            <Text className="text-error text-center">
+              Error: {audioError}
             </Text>
           )}
         </View>
 
-        {/* Play Button */}
-        {!hasPlayed ? (
-          <TouchableOpacity
-            onPress={handlePlay}
-            disabled={!isReady}
-            className="w-48 h-48 rounded-full bg-primary items-center justify-center shadow-lg"
-            activeOpacity={0.9}
-          >
-            {!isReady ? (
-              <ActivityIndicator size="large" color="#ffffff" />
-            ) : (
-              <>
-                <IconSymbol name="play.circle.fill" size={80} color="#ffffff" />
-                <Text className="text-white text-xl font-bold mt-4">
-                  Tap to Play
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
-        ) : (
-          <>
-            {/* Unlock Result */}
-            {unlockResult && (
-              <View className="items-center gap-4 px-6">
-                {unlockResult.isNew ? (
-                  <>
-                    <IconSymbol name="sparkles" size={64} color="#FFD700" />
-                    <Text className="text-2xl font-bold text-foreground text-center">
-                      New Sound Unlocked! 🎉
-                    </Text>
-                    <View className="bg-surface rounded-2xl p-6 border border-border">
-                      <Text className="text-lg font-semibold text-foreground text-center">
-                        {sound.title}
-                      </Text>
-                      {sound.rarity && (
-                        <View
-                          className="mt-3 px-4 py-2 rounded-full self-center"
-                          style={{
-                            backgroundColor:
-                              sound.rarity === "legendary"
-                                ? "#FFD700"
-                                : sound.rarity === "rare"
-                                ? colors.primary
-                                : colors.muted,
-                          }}
-                        >
-                          <Text className="text-sm font-semibold text-white">
-                            {sound.rarity.toUpperCase()}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  </>
-                ) : (
-                  <>
-                    <IconSymbol name="checkmark.circle.fill" size={64} color={colors.muted} />
-                    <Text className="text-xl font-semibold text-muted text-center">
-                      You've heard this one before!
-                    </Text>
-                  </>
-                )}
-              </View>
-            )}
-
-            {/* Navigation Buttons */}
-            <View className="flex-row gap-4 mt-4">
-              <TouchableOpacity
-                onPress={() => router.push("/(tabs)/" as any)}
-                className="px-6 py-3 rounded-full border-2 border-primary"
-                activeOpacity={0.7}
+        {/* Navigation Buttons */}
+        {hasPlayed && (
+          <View className="flex-row gap-4 w-full">
+            <TouchableOpacity
+              onPress={() => router.push("/(tabs)/" as any)}
+              className="flex-1 px-6 py-4 rounded-full border-2"
+              style={{ borderColor: colors.primary }}
+              activeOpacity={0.7}
+            >
+              <Text
+                className="text-center font-semibold"
+                style={{ color: colors.primary }}
               >
-                <Text className="text-primary font-semibold">Home</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => router.push("/(tabs)/surprisedex" as any)}
-                className="px-6 py-3 rounded-full bg-primary"
-                activeOpacity={0.7}
+                Home
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push("/(tabs)/surprisedex" as any)}
+              className="flex-1 px-6 py-4 rounded-full"
+              style={{ backgroundColor: colors.primary }}
+              activeOpacity={0.7}
+            >
+              <Text
+                className="text-center font-semibold"
+                style={{ color: colors.background }}
               >
-                <Text className="text-white font-semibold">View Collection</Text>
-              </TouchableOpacity>
-            </View>
-          </>
+                Collection
+              </Text>
+            </TouchableOpacity>
+          </View>
         )}
-
-        {audioError && (
-          <Text className="text-error text-center mt-4">
-            Error: {audioError}
-          </Text>
-        )}
-      </View>
+      </Animated.View>
     </ScreenContainer>
   );
 }

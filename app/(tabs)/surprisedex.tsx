@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, Platform } from "react-native";
+import { useState, useEffect, useRef } from "react";
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, Platform, Animated } from "react-native";
 import * as Haptics from "expo-haptics";
 
 import { ScreenContainer } from "@/components/screen-container";
@@ -14,6 +14,16 @@ export default function SurpriseDexScreen() {
   const { isAuthenticated } = useAuth();
   const [playingUrl, setPlayingUrl] = useState<string | null>(null);
   const { play, pause } = useSoundPlayer(playingUrl);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Fade in animation
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
+  }, []);
 
   // Get unlocked sounds
   const { data: unlocks, isLoading } = trpc.unlocks.list.useQuery(
@@ -21,8 +31,8 @@ export default function SurpriseDexScreen() {
     { enabled: isAuthenticated }
   );
 
-  // Get progress
-  const { data: progress } = trpc.unlocks.progress.useQuery(
+  // Get all sounds
+  const { data: allSounds } = trpc.sounds.list.useQuery(
     undefined,
     { enabled: isAuthenticated }
   );
@@ -31,7 +41,7 @@ export default function SurpriseDexScreen() {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    
+
     if (playingUrl === soundUrl) {
       // Stop if already playing
       pause();
@@ -47,7 +57,7 @@ export default function SurpriseDexScreen() {
     return (
       <ScreenContainer className="items-center justify-center p-6">
         <Text className="text-xl text-muted text-center">
-          Log in to view your SurpriseDex!
+          Please log in to view your collection!
         </Text>
       </ScreenContainer>
     );
@@ -61,87 +71,140 @@ export default function SurpriseDexScreen() {
     );
   }
 
-  return (
-    <ScreenContainer className="p-6">
-      {/* Header */}
-      <View className="mb-6">
-        <Text className="text-3xl font-bold text-foreground text-center">
-          SurpriseDex
-        </Text>
-        {progress && (
-          <Text className="text-base text-muted text-center mt-2">
-            {progress.unlocked} of {progress.total} collected
-          </Text>
-        )}
-      </View>
+  const unlockedIds = new Set(unlocks?.map((u) => u.soundId) || []);
+  const displaySounds = allSounds || [];
 
-      {/* Unlocked Sounds List */}
-      {unlocks && unlocks.length > 0 ? (
-        <FlatList
-          data={unlocks}
-          keyExtractor={(item) => item.id.toString()}
-          contentContainerStyle={{ paddingBottom: 20 }}
-          renderItem={({ item }) => (
-            <View className="bg-surface rounded-2xl p-4 mb-4 border border-border">
-              <View className="flex-row items-center justify-between">
-                <View className="flex-1 mr-4">
-                  <Text className="text-lg font-semibold text-foreground">
-                    {item.sound?.title || "Unknown Sound"}
-                  </Text>
-                  {item.sound?.description && (
-                    <Text className="text-sm text-muted mt-1">
-                      {item.sound.description}
-                    </Text>
-                  )}
-                  <View className="flex-row items-center gap-2 mt-2">
-                    {item.sound?.rarity && (
-                      <View
-                        className="px-2 py-1 rounded-full"
-                        style={{
-                          backgroundColor:
-                            item.sound.rarity === "legendary"
-                              ? "#FFD700"
-                              : item.sound.rarity === "rare"
-                              ? colors.primary
-                              : colors.muted,
-                        }}
-                      >
-                        <Text className="text-xs font-semibold text-white">
-                          {item.sound.rarity.toUpperCase()}
-                        </Text>
-                      </View>
-                    )}
-                    <Text className="text-xs text-muted">
-                      Played {item.timesHeard} {item.timesHeard === 1 ? "time" : "times"}
+  const renderSoundCard = ({ item, index }: { item: any; index: number }) => {
+    const isUnlocked = unlockedIds.has(item.id);
+    const isPlaying = playingUrl === item.url;
+    const scaleAnim = useRef(new Animated.Value(1)).current;
+
+    const handlePress = () => {
+      if (isUnlocked) {
+        handlePlaySound(item.url, item.title);
+
+        // Animate press
+        Animated.sequence([
+          Animated.timing(scaleAnim, {
+            toValue: 0.95,
+            duration: 100,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scaleAnim, {
+            toValue: 1,
+            duration: 100,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }
+    };
+
+    return (
+      <Animated.View
+        style={{
+          opacity: fadeAnim,
+          transform: [{ scale: scaleAnim }],
+        }}
+      >
+        <TouchableOpacity
+          onPress={handlePress}
+          disabled={!isUnlocked}
+          activeOpacity={isUnlocked ? 0.8 : 1}
+          className="m-2 rounded-2xl overflow-hidden shadow-lg"
+          style={{
+            backgroundColor: isUnlocked ? colors.primary : colors.surface,
+            opacity: isUnlocked ? 1 : 0.5,
+          }}
+        >
+          <View className="p-6 items-center justify-center gap-3 min-h-[200px]">
+            {isUnlocked ? (
+              <>
+                <Text className="text-4xl">
+                  {isPlaying ? "🎵" : "🎧"}
+                </Text>
+                <Text
+                  className="text-center font-bold text-lg"
+                  style={{ color: colors.background }}
+                  numberOfLines={2}
+                >
+                  {item.title}
+                </Text>
+                {item.rarity && (
+                  <View
+                    className="px-3 py-1 rounded-full mt-2"
+                    style={{
+                      backgroundColor:
+                        item.rarity === "legendary"
+                          ? "#FFD700"
+                          : item.rarity === "rare"
+                          ? colors.background
+                          : colors.muted,
+                    }}
+                  >
+                    <Text
+                      className="text-xs font-bold"
+                      style={{
+                        color:
+                          item.rarity === "legendary"
+                            ? "#000"
+                            : colors.foreground,
+                      }}
+                    >
+                      {item.rarity.toUpperCase()}
                     </Text>
                   </View>
-                </View>
-
-                {/* Play Button */}
-                <TouchableOpacity
-                  onPress={() =>
-                    handlePlaySound(item.sound?.url || "", item.sound?.title || "")
-                  }
-                  className="w-12 h-12 rounded-full bg-primary items-center justify-center"
-                  activeOpacity={0.6}
+                )}
+              </>
+            ) : (
+              <>
+                <Text className="text-5xl">❓</Text>
+                <Text
+                  className="text-center font-semibold"
+                  style={{ color: colors.muted }}
                 >
-                  <IconSymbol name="play.circle.fill" size={28} color="#ffffff" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-        />
-      ) : (
-        <View className="flex-1 items-center justify-center">
-          <IconSymbol name="lock.fill" size={64} color={colors.muted} />
-          <Text className="text-xl text-muted text-center mt-4">
-            No sounds unlocked yet!
-          </Text>
-          <Text className="text-base text-muted text-center mt-2 px-8">
-            Arm a surprise to start collecting sounds
-          </Text>
-        </View>
-      )}
+                  Locked
+                </Text>
+                <Text
+                  className="text-xs text-center"
+                  style={{ color: colors.muted }}
+                >
+                  Arm surprises to unlock
+                </Text>
+              </>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  };
+
+  return (
+    <ScreenContainer className="p-4">
+      <View className="gap-4 mb-4">
+        <Text
+          className="text-4xl font-black"
+          style={{ color: colors.foreground }}
+        >
+          SurpriseDex
+        </Text>
+        <Text
+          className="text-base"
+          style={{ color: colors.muted }}
+        >
+          {unlockedIds.size} of {displaySounds.length} sounds unlocked
+        </Text>
+      </View>
+
+      <FlatList
+        data={displaySounds}
+        renderItem={renderSoundCard}
+        keyExtractor={(item) => item.id.toString()}
+        numColumns={2}
+        columnWrapperStyle={{ justifyContent: "space-between" }}
+        scrollEnabled={true}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 20 }}
+      />
     </ScreenContainer>
   );
 }
