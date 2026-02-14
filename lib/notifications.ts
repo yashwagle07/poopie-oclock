@@ -52,25 +52,25 @@ export async function requestNotificationPermissions(): Promise<boolean> {
  */
 export async function scheduleSurpriseNotification(
   surpriseId: number,
-  fireAt: Date,
+  delaySeconds: number,
   soundTitle?: string
 ): Promise<string | null> {
   try {
+    console.log(`[Notifications] Scheduling notification in ${delaySeconds}s for surprise ${surpriseId}`);
     const notificationId = await Notifications.scheduleNotificationAsync({
       content: {
-        title: "Your surprise is ready! 🎁",
-        body: soundTitle
-          ? `Tap to reveal: ${soundTitle}`
-          : "Tap to reveal your surprise sound!",
-        data: { surpriseId },
+        title: "Poopie O'clock! 💜",
+        body: "You have a surprise waiting for you 🎁",
+        data: { surpriseId: String(surpriseId) },
         sound: true,
       },
       trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DATE,
-        date: fireAt,
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: Math.max(delaySeconds, 1),
       },
     });
 
+    console.log(`[Notifications] Scheduled notification ${notificationId}`);
     return notificationId;
   } catch (error) {
     console.error("Failed to schedule notification:", error);

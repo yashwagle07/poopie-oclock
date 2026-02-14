@@ -69,10 +69,12 @@ export default function HomeScreen() {
     onSuccess: async (data) => {
       if (Platform.OS !== "web") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        // Calculate delay in seconds from fireAt
+        const fireAtDate = new Date(data.fireAt);
+        const delaySeconds = Math.max(Math.round((fireAtDate.getTime() - Date.now()) / 1000), 5);
         // Schedule local notification on native
-        await scheduleSurpriseNotification(data.id, data.fireAt, data.sound.title);
-        const minutes = Math.round((data.fireAt.getTime() - Date.now()) / 60000);
-        alert(`Surprise armed! 🎁\n\nYou'll get a notification in about ${minutes} minutes!`);
+        await scheduleSurpriseNotification(data.id, delaySeconds, data.sound.title);
+        alert("Surprise armed! \ud83c\udf81\n\nYou'll get a notification when it's ready!");
       } else {
         // On web: navigate directly to play screen (no push notifications)
         router.push(`/play/${data.id}` as any);
@@ -86,7 +88,7 @@ export default function HomeScreen() {
       if (Platform.OS !== "web") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
-      alert("Oops! Something went wrong. Try again! 💜");
+      alert("Oops! Something went wrong. Try again! \ud83d\udc9c");
       setIsArming(false);
     },
   });
@@ -138,7 +140,7 @@ export default function HomeScreen() {
     setIsArming(true);
     armMutation.mutate({
       minDelayMinutes: 1,
-      maxDelayMinutes: 5,
+      maxDelayMinutes: 30,
     });
   };
 

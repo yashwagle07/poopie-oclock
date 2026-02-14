@@ -101,3 +101,6 @@
 - [x] Remove "Random audio surprises just for you" subtitle copy
 - [x] Improve play screen copy for new unlock and already collected states
 - [x] Fix repeat sound copy not showing on play screen
+- [x] Fix push notifications not firing on Expo Go / native (switched to TIME_INTERVAL trigger)
+- [x] Increase surprise delay window to 1-30 minutes
+- [x] Remove time display from arm confirmation alert
