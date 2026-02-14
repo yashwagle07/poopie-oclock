@@ -191,14 +191,14 @@ export default function PlaySurpriseScreen() {
               className="text-4xl font-black text-center"
               style={{ color: colors.foreground }}
             >
-              {hasPlayed ? sound.title : "Your Surprise is Ready!"}
+              {hasPlayed ? sound.title : "You got a surprise!"}
             </Text>
-            {sound.description && hasPlayed && (
+            {!hasPlayed && (
               <Text
                 className="text-base text-center px-4"
                 style={{ color: colors.muted }}
               >
-                {sound.description}
+                Tap play to hear it
               </Text>
             )}
           </View>
@@ -238,12 +238,18 @@ export default function PlaySurpriseScreen() {
             >
               {unlockResult.isNew ? (
                 <>
-                  <Text className="text-6xl">🎉</Text>
+                  <Text className="text-6xl">✨</Text>
                   <Text
                     className="text-2xl font-black text-center"
                     style={{ color: colors.primary }}
                   >
-                    New Sound Unlocked!
+                    Ooh a new one!
+                  </Text>
+                  <Text
+                    className="text-base text-center"
+                    style={{ color: colors.muted }}
+                  >
+                    Added to your collection
                   </Text>
                   <View
                     className="rounded-2xl p-6 border-2 w-full items-center"
@@ -282,12 +288,18 @@ export default function PlaySurpriseScreen() {
                 </>
               ) : (
                 <>
-                  <Text className="text-5xl">😄</Text>
+                  <Text className="text-5xl">💜</Text>
                   <Text
                     className="text-xl font-bold text-center"
+                    style={{ color: colors.foreground }}
+                  >
+                    Classic {sound.title}
+                  </Text>
+                  <Text
+                    className="text-base text-center"
                     style={{ color: colors.muted }}
                   >
-                    You've heard this one before!
+                    You already have this one, silly
                   </Text>
                 </>
               )}
