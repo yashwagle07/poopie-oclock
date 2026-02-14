@@ -100,3 +100,4 @@
 - [x] Fix "Loading please wait" error when arming a surprise
 - [x] Remove "Random audio surprises just for you" subtitle copy
 - [x] Improve play screen copy for new unlock and already collected states
+- [x] Fix repeat sound copy not showing on play screen

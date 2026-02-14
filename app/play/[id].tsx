@@ -48,13 +48,11 @@ export default function PlaySurpriseScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
 
-      // Trigger celebration animation
-      if (data.isNew) {
-        Animated.spring(celebrationScale, {
-          toValue: 1,
-          useNativeDriver: true,
-        }).start();
-      }
+      // Trigger animation for both new and repeat
+      Animated.spring(celebrationScale, {
+        toValue: 1,
+        useNativeDriver: true,
+      }).start();
     },
   });
 
