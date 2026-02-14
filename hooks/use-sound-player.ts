@@ -1,77 +1,120 @@
-import { useEffect, useState } from "react";
-import { useAudioPlayer, setAudioModeAsync } from "expo-audio";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Platform } from "react-native";
 
 /**
- * Hook for playing audio from a URL
+ * Cross-platform audio player hook.
+ * On native: uses expo-audio. On web: uses HTML5 Audio API.
  */
 export function useSoundPlayer(url: string | null) {
   const [isReady, setIsReady] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Create audio player with the URL
-  const player = useAudioPlayer(url || "");
+  const audioRef = useRef<any>(null);
 
   useEffect(() => {
-    // Configure audio mode to play in silent mode on iOS
-    const configureAudio = async () => {
+    if (!url) {
+      setIsReady(false);
+      return;
+    }
+
+    const setup = async () => {
       try {
-        if (Platform.OS === "ios") {
-          await setAudioModeAsync({
-            playsInSilentMode: true,
+        if (Platform.OS === "web") {
+          // Web: use HTML5 Audio
+          const audio = new Audio(url);
+          audio.preload = "auto";
+          audio.addEventListener("canplaythrough", () => setIsReady(true));
+          audio.addEventListener("ended", () => setIsPlaying(false));
+          audio.addEventListener("error", () => {
+            setError("Failed to load audio");
+            setIsReady(false);
           });
+          audioRef.current = audio;
+        } else {
+          // Native: use expo-audio
+          const { createAudioPlayer, setAudioModeAsync } = await import("expo-audio");
+          await setAudioModeAsync({ playsInSilentMode: true });
+          const player = createAudioPlayer({ uri: url });
+          audioRef.current = player;
+          setIsReady(true);
         }
-        setIsReady(true);
       } catch (err) {
-        console.error("Failed to configure audio:", err);
-        setError("Failed to configure audio");
+        console.error("Failed to setup audio:", err);
+        setError("Failed to setup audio player");
       }
     };
 
-    configureAudio();
+    setup();
 
-    // Cleanup on unmount
     return () => {
-      if (player) {
-        player.pause();
+      if (audioRef.current) {
+        if (Platform.OS === "web") {
+          audioRef.current.pause();
+          audioRef.current.src = "";
+          audioRef.current = null;
+        } else {
+          try {
+            audioRef.current.remove?.();
+          } catch {
+            // ignore cleanup errors
+          }
+          audioRef.current = null;
+        }
       }
     };
-  }, []);
+  }, [url]);
 
-  const play = async () => {
-    if (!isReady || !url) {
+  const play = useCallback(async () => {
+    if (!audioRef.current || !url) {
       setError("Audio not ready");
       return;
     }
 
     try {
-      player.play();
+      if (Platform.OS === "web") {
+        audioRef.current.currentTime = 0;
+        await audioRef.current.play();
+      } else {
+        audioRef.current.seekTo(0);
+        audioRef.current.play();
+      }
+      setIsPlaying(true);
     } catch (err) {
       console.error("Failed to play audio:", err);
       setError("Failed to play audio");
     }
-  };
+  }, [url]);
 
-  const pause = () => {
+  const pause = useCallback(() => {
     try {
-      player.pause();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+      }
     } catch (err) {
       console.error("Failed to pause audio:", err);
     }
-  };
+  }, []);
 
-  const stop = () => {
+  const stop = useCallback(() => {
     try {
-      player.pause();
-      player.seekTo(0);
+      if (audioRef.current) {
+        audioRef.current.pause();
+        if (Platform.OS === "web") {
+          audioRef.current.currentTime = 0;
+        } else {
+          audioRef.current.seekTo(0);
+        }
+        setIsPlaying(false);
+      }
     } catch (err) {
       console.error("Failed to stop audio:", err);
     }
-  };
+  }, []);
 
   return {
-    player,
-    isReady,
+    isReady: isReady || (Platform.OS === "web" && !!url),
+    isPlaying,
     error,
     play,
     pause,

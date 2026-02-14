@@ -1,0 +1,13 @@
+{
+  "query": "SHOW TABLES LIKE 'sounds';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2Awv2MUPt1QTM89.root --database MDPwWgHTPJjsYqypkLmMwg --execute SHOW TABLES LIKE 'sounds';",
+  "rows": [
+    {
+      "Tables_in_MDPwWgHTPJjsYqypkLmMwg (sounds)": "sounds"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_MDPwWgHTPJjsYqypkLmMwg (sounds)\nsounds\n",
+  "stderr": "",
+  "execution_time_ms": 55
+}

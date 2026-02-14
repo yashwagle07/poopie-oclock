@@ -1,122 +1,172 @@
-import { describe, it, expect, beforeAll } from "vitest";
-import * as db from "../server/db";
+import { describe, it, expect } from "vitest";
 
-describe("Database Functions", () => {
-  describe("Sounds", () => {
-    it("should get active sounds", async () => {
-      const sounds = await db.getActiveSounds();
-      expect(Array.isArray(sounds)).toBe(true);
-    });
+const API_BASE = "http://127.0.0.1:3000";
 
-    it("should get all sounds", async () => {
-      const sounds = await db.getAllSounds();
-      expect(Array.isArray(sounds)).toBe(true);
-    });
+// Helper to do demo login and get cookie
+async function demoLogin(): Promise<string> {
+  const res = await fetch(`${API_BASE}/api/auth/demo-login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
   });
+  const setCookie = res.headers.get("set-cookie");
+  return setCookie || "";
+}
 
-  describe("Unlock Progress", () => {
-    it("should return progress with unlocked and total counts", async () => {
-      // Test with a non-existent user ID
-      const progress = await db.getUnlockProgress(999999);
-      expect(progress).toHaveProperty("unlocked");
-      expect(progress).toHaveProperty("total");
-      expect(typeof progress.unlocked).toBe("number");
-      expect(typeof progress.total).toBe("number");
-      expect(progress.unlocked).toBeGreaterThanOrEqual(0);
-      expect(progress.total).toBeGreaterThanOrEqual(0);
+describe("Demo Login", () => {
+  it("should create a demo user and return session cookie", async () => {
+    const res = await fetch(`${API_BASE}/api/auth/demo-login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
     });
-  });
+    expect(res.ok).toBe(true);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+    expect(data.user).toBeDefined();
+    expect(data.user.name).toBe("Poopie");
+    expect(data.user.openId).toBe("demo-user");
 
-  describe("Surprises", () => {
-    it("should get user surprises", async () => {
-      // Test with a non-existent user ID
-      const surprises = await db.getUserSurprises(999999);
-      expect(Array.isArray(surprises)).toBe(true);
-    });
-
-    it("should get pending surprises", async () => {
-      const surprises = await db.getPendingSurprises();
-      expect(Array.isArray(surprises)).toBe(true);
-    });
-  });
-
-  describe("Unlocks", () => {
-    it("should get user unlocks", async () => {
-      // Test with a non-existent user ID
-      const unlocks = await db.getUserUnlocks(999999);
-      expect(Array.isArray(unlocks)).toBe(true);
-    });
-
-    it("should check if sound is unlocked", async () => {
-      // Test with a non-existent user and sound
-      const isUnlocked = await db.isUnlocked(999999, 999999);
-      expect(typeof isUnlocked).toBe("boolean");
-      expect(isUnlocked).toBe(false);
-    });
+    // Should set a session cookie
+    const setCookie = res.headers.get("set-cookie");
+    expect(setCookie).toBeTruthy();
   });
 });
 
-describe("API Schema Validation", () => {
-  it("should have correct sound schema structure", () => {
-    // This test validates that the schema types are correctly exported
-    const mockSound = {
-      id: 1,
-      url: "https://example.com/sound.mp3",
-      title: "Test Sound",
-      description: "A test sound",
-      type: "normal" as const,
-      rarity: "common" as const,
-      active: true,
-      order: 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+describe("Auth Me", () => {
+  it("should return user info with valid session cookie", async () => {
+    const cookie = await demoLogin();
+    const res = await fetch(`${API_BASE}/api/auth/me`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.ok).toBe(true);
+    const data = await res.json();
+    // The /api/auth/me endpoint wraps the user in a user property
+    const user = data.user || data;
+    expect(user.id).toBeDefined();
+    expect(user.name).toBe("Poopie");
+  });
+});
 
-    expect(mockSound).toHaveProperty("id");
-    expect(mockSound).toHaveProperty("url");
-    expect(mockSound).toHaveProperty("title");
-    expect(mockSound).toHaveProperty("type");
-    expect(mockSound).toHaveProperty("rarity");
-    expect(mockSound).toHaveProperty("active");
+describe("Sounds API", () => {
+  it("should list active sounds", async () => {
+    const res = await fetch(`${API_BASE}/api/trpc/sounds.list`);
+    expect(res.ok).toBe(true);
+    const data = await res.json();
+    expect(data.result.data.json).toBeDefined();
+    expect(Array.isArray(data.result.data.json)).toBe(true);
+    expect(data.result.data.json.length).toBeGreaterThan(0);
   });
 
-  it("should have correct surprise schema structure", () => {
-    const mockSurprise = {
-      id: 1,
-      userId: 1,
-      soundId: 1,
-      soundUrl: "https://example.com/sound.mp3",
-      status: "armed" as const,
-      fireAt: new Date(),
-      sentAt: null,
-      openedAt: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+  it("should get a sound by id", async () => {
+    const res = await fetch(
+      `${API_BASE}/api/trpc/sounds.getById?input=${encodeURIComponent(JSON.stringify({ json: { id: 1 } }))}`
+    );
+    expect(res.ok).toBe(true);
+    const data = await res.json();
+    expect(data.result.data.json).toBeDefined();
+    expect(data.result.data.json.id).toBe(1);
+    expect(data.result.data.json.title).toBeDefined();
+  });
+});
 
-    expect(mockSurprise).toHaveProperty("id");
-    expect(mockSurprise).toHaveProperty("userId");
-    expect(mockSurprise).toHaveProperty("soundId");
-    expect(mockSurprise).toHaveProperty("status");
-    expect(mockSurprise).toHaveProperty("fireAt");
+describe("Arm Surprise", () => {
+  it("should arm a surprise and return surprise data", async () => {
+    const cookie = await demoLogin();
+    const res = await fetch(`${API_BASE}/api/trpc/surprises.arm`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: cookie,
+      },
+      body: JSON.stringify({ json: { minDelayMinutes: 1, maxDelayMinutes: 5 } }),
+    });
+    expect(res.ok).toBe(true);
+    const data = await res.json();
+    const surprise = data.result.data.json;
+    expect(surprise.id).toBeDefined();
+    expect(surprise.fireAt).toBeDefined();
+    expect(surprise.sound).toBeDefined();
+    expect(surprise.sound.id).toBeDefined();
+    expect(surprise.sound.title).toBeDefined();
   });
 
-  it("should have correct unlock schema structure", () => {
-    const mockUnlock = {
-      id: 1,
-      userId: 1,
-      soundId: 1,
-      unlockedAt: new Date(),
-      timesHeard: 1,
-      lastHeardAt: new Date(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+  it("should fail without authentication", async () => {
+    const res = await fetch(`${API_BASE}/api/trpc/surprises.arm`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ json: { minDelayMinutes: 1, maxDelayMinutes: 5 } }),
+    });
+    // Should return an error (401 or error in response)
+    const data = await res.json();
+    expect(data.error).toBeDefined();
+  });
+});
 
-    expect(mockUnlock).toHaveProperty("id");
-    expect(mockUnlock).toHaveProperty("userId");
-    expect(mockUnlock).toHaveProperty("soundId");
-    expect(mockUnlock).toHaveProperty("unlockedAt");
-    expect(mockUnlock).toHaveProperty("timesHeard");
+describe("Unlock Progress", () => {
+  it("should return unlock progress", async () => {
+    const cookie = await demoLogin();
+    const res = await fetch(`${API_BASE}/api/trpc/unlocks.progress`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.ok).toBe(true);
+    const data = await res.json();
+    const progress = data.result.data.json;
+    expect(progress.total).toBeGreaterThan(0);
+    expect(typeof progress.unlocked).toBe("number");
+  });
+});
+
+describe("Process Unlock", () => {
+  it("should process an unlock and return result", async () => {
+    const cookie = await demoLogin();
+
+    // Get a random sound
+    const soundsRes = await fetch(`${API_BASE}/api/trpc/sounds.list`);
+    const soundsData = await soundsRes.json();
+    const sounds = soundsData.result.data.json;
+    const sound = sounds[sounds.length - 1];
+
+    const res = await fetch(`${API_BASE}/api/trpc/unlocks.processUnlock`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: cookie,
+      },
+      body: JSON.stringify({ json: { soundId: sound.id } }),
+    });
+    expect(res.ok).toBe(true);
+    const data = await res.json();
+    const result = data.result.data.json;
+    expect(typeof result.isNew).toBe("boolean");
+    expect(result.message).toBeDefined();
+  });
+});
+
+describe("Get Surprise By ID", () => {
+  it("should get a surprise by id after arming", async () => {
+    const cookie = await demoLogin();
+
+    // Arm a surprise first
+    const armRes = await fetch(`${API_BASE}/api/trpc/surprises.arm`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: cookie,
+      },
+      body: JSON.stringify({ json: { minDelayMinutes: 1, maxDelayMinutes: 5 } }),
+    });
+    const armData = await armRes.json();
+    const surpriseId = armData.result.data.json.id;
+
+    // Get the surprise by ID
+    const res = await fetch(
+      `${API_BASE}/api/trpc/surprises.getById?input=${encodeURIComponent(JSON.stringify({ json: { id: surpriseId } }))}`,
+      { headers: { Cookie: cookie } }
+    );
+    expect(res.ok).toBe(true);
+    const data = await res.json();
+    const surprise = data.result.data.json;
+    expect(surprise.id).toBe(surpriseId);
+    expect(surprise.status).toBe("armed");
+    expect(surprise.soundId).toBeDefined();
   });
 });

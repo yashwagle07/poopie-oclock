@@ -88,3 +88,11 @@
 - [x] Redesign SurpriseDex with modern grid
 - [x] Add micro-interactions and haptic feedback
 - [x] Test all animations and transitions
+
+## Bug Fixes
+- [x] Valentine's Day splash page not appearing on first load
+- [x] Arm a Surprise button not responding / no feedback on web
+- [x] Fix demo auto-login for web (no manual login needed)
+- [x] Fix audio playback on web (HTML5 Audio fallback)
+- [x] Fix app icon format (convert from webp to PNG)
+- [x] On web: navigate directly to play screen after arming (no push notifications)

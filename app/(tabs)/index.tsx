@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator, Platform, Animated, ScrollView } from "react-native";
+import { View, Text, TouchableOpacity, ActivityIndicator, Platform, Animated, ScrollView, StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 
@@ -15,17 +15,16 @@ export default function HomeScreen() {
   const colors = useColors();
   const { isAuthenticated, loading: authLoading } = useAuth();
   const [isArming, setIsArming] = useState(false);
-  const [hasNotificationPermission, setHasNotificationPermission] = useState(false);
 
   // Animation refs
   const buttonScale = useRef(new Animated.Value(1)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  // Request notification permissions on mount
+  // Request notification permissions on mount (native only)
   useEffect(() => {
     if (isAuthenticated && Platform.OS !== "web") {
-      requestNotificationPermissions().then(setHasNotificationPermission);
+      requestNotificationPermissions();
     }
   }, [isAuthenticated]);
 
@@ -55,65 +54,67 @@ export default function HomeScreen() {
       ])
     );
     pulseAnimation.start();
-
     return () => pulseAnimation.stop();
   }, []);
 
   // Get unlock progress
-  const { data: progress, isLoading: progressLoading } = trpc.unlocks.progress.useQuery(
+  const progressQuery = trpc.unlocks.progress.useQuery(
     undefined,
     { enabled: isAuthenticated }
   );
+  const progress = progressQuery.data;
 
   // Arm surprise mutation
   const armMutation = trpc.surprises.arm.useMutation({
     onSuccess: async (data) => {
       if (Platform.OS !== "web") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        // Schedule local notification on native
+        await scheduleSurpriseNotification(data.id, data.fireAt, data.sound.title);
+        const minutes = Math.round((data.fireAt.getTime() - Date.now()) / 60000);
+        alert(`Surprise armed! 🎁\n\nYou'll get a notification in about ${minutes} minutes!`);
+      } else {
+        // On web: navigate directly to play screen (no push notifications)
+        router.push(`/play/${data.id}` as any);
       }
-
-      // Animate button press
-      Animated.sequence([
-        Animated.timing(buttonScale, {
-          toValue: 0.95,
-          duration: 100,
-          useNativeDriver: true,
-        }),
-        Animated.timing(buttonScale, {
-          toValue: 1,
-          duration: 100,
-          useNativeDriver: true,
-        }),
-      ]).start();
-
-      // Schedule local notification
-      if (Platform.OS !== "web") {
-        await scheduleSurpriseNotification(
-          data.id,
-          data.fireAt,
-          data.sound.title
-        );
-      }
-
-      // Show success message
-      const minutes = Math.round((data.fireAt.getTime() - Date.now()) / 60000);
-      alert(`Surprise armed! 🎁\n\nYou'll get a notification in about ${minutes} minutes!`);
       setIsArming(false);
+      // Refetch progress
+      progressQuery.refetch();
     },
     onError: (error) => {
+      console.error("[HomeScreen] Arm error:", error);
       if (Platform.OS !== "web") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
-      alert("Failed to arm surprise. Please try again.");
+      alert("Oops! Something went wrong. Try again! 💜");
       setIsArming(false);
     },
   });
 
   const handleArmSurprise = () => {
     if (!isAuthenticated) {
-      alert("Please log in first!");
+      // This shouldn't happen with auto-login, but just in case
+      alert("Loading... please wait a moment and try again!");
       return;
     }
+
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+
+    // Animate button press
+    Animated.sequence([
+      Animated.timing(buttonScale, {
+        toValue: 0.92,
+        duration: 80,
+        useNativeDriver: true,
+      }),
+      Animated.timing(buttonScale, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
 
     setIsArming(true);
     armMutation.mutate({
@@ -126,6 +127,9 @@ export default function HomeScreen() {
     return (
       <ScreenContainer className="items-center justify-center">
         <ActivityIndicator size="large" color={colors.primary} />
+        <Text className="mt-4 text-base" style={{ color: colors.muted }}>
+          Loading your surprises...
+        </Text>
       </ScreenContainer>
     );
   }
@@ -158,7 +162,7 @@ export default function HomeScreen() {
           </View>
 
           {/* Main Button */}
-          <View className="items-center justify-center gap-8 my-12">
+          <View className="items-center justify-center gap-6 my-10">
             <Animated.View
               style={{
                 transform: [{ scale: isArming ? buttonScale : pulseAnim }],
@@ -166,19 +170,29 @@ export default function HomeScreen() {
             >
               <TouchableOpacity
                 onPress={handleArmSurprise}
-                disabled={isArming || !isAuthenticated}
-                className="w-56 h-56 rounded-full items-center justify-center shadow-2xl"
-                style={{
-                  backgroundColor: colors.primary,
-                  opacity: isArming || !isAuthenticated ? 0.6 : 1,
-                }}
-                activeOpacity={0.9}
+                disabled={isArming}
+                style={[
+                  styles.giftButton,
+                  {
+                    backgroundColor: colors.primary,
+                    opacity: isArming ? 0.7 : 1,
+                  },
+                ]}
+                activeOpacity={0.85}
               >
                 {isArming ? (
-                  <ActivityIndicator size="large" color={colors.background} />
+                  <View className="items-center gap-3">
+                    <ActivityIndicator size="large" color={colors.background} />
+                    <Text
+                      className="text-base font-semibold"
+                      style={{ color: colors.background }}
+                    >
+                      Picking a surprise...
+                    </Text>
+                  </View>
                 ) : (
-                  <View className="items-center gap-4">
-                    <IconSymbol name="gift.fill" size={80} color={colors.background} />
+                  <View className="items-center gap-3">
+                    <IconSymbol name="gift.fill" size={72} color={colors.background} />
                     <Text
                       className="text-lg font-bold text-center px-4"
                       style={{ color: colors.background }}
@@ -191,26 +205,17 @@ export default function HomeScreen() {
             </Animated.View>
 
             {/* Status Message */}
-            {!isAuthenticated ? (
-              <Text
-                className="text-center text-lg"
-                style={{ color: colors.muted }}
-              >
-                Log in to start collecting surprise sounds!
-              </Text>
-            ) : (
-              <Text
-                className="text-center text-base"
-                style={{ color: colors.muted }}
-              >
-                Tap the gift to arm a surprise 🎁
-              </Text>
-            )}
+            <Text
+              className="text-center text-base"
+              style={{ color: colors.muted }}
+            >
+              Tap the gift to get a random surprise 🎁
+            </Text>
           </View>
 
           {/* Progress Section */}
           {isAuthenticated && progress && (
-            <View className="gap-4 mb-4">
+            <View className="gap-4 mb-6">
               <View className="gap-2">
                 <View className="flex-row justify-between items-center">
                   <Text
@@ -230,7 +235,7 @@ export default function HomeScreen() {
                   className="h-3 rounded-full overflow-hidden"
                   style={{ backgroundColor: colors.surface }}
                 >
-                  <Animated.View
+                  <View
                     className="h-full rounded-full"
                     style={{
                       backgroundColor: colors.primary,
@@ -251,8 +256,7 @@ export default function HomeScreen() {
           {/* Open SurpriseDex Button */}
           <TouchableOpacity
             onPress={() => router.push("/(tabs)/surprisedex" as any)}
-            className="px-6 py-4 rounded-full border-2 items-center"
-            style={{ borderColor: colors.primary }}
+            style={[styles.dexButton, { borderColor: colors.primary }]}
             activeOpacity={0.7}
           >
             <Text
@@ -267,3 +271,25 @@ export default function HomeScreen() {
     </ScreenContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  giftButton: {
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  dexButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderRadius: 999,
+    borderWidth: 2,
+    alignItems: "center",
+  },
+});

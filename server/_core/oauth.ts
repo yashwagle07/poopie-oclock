@@ -145,6 +145,41 @@ export function registerOAuthRoutes(app: Express) {
     }
   });
 
+  // Demo login endpoint - creates a session for demo/testing without OAuth
+  app.post("/api/auth/demo-login", async (req: Request, res: Response) => {
+    try {
+      const signedInAt = new Date();
+      // Upsert demo user
+      await upsertUser({
+        openId: "demo-user",
+        name: "Poopie",
+        email: "poopie@love.local",
+        loginMethod: "demo",
+        lastSignedIn: signedInAt,
+      });
+      const user = await getUserByOpenId("demo-user");
+      if (!user) {
+        res.status(500).json({ error: "Failed to create demo user" });
+        return;
+      }
+
+      // Create a real JWT session token
+      const sessionToken = await sdk.createSessionToken("demo-user", {
+        name: "Poopie",
+        expiresInMs: ONE_YEAR_MS,
+      });
+
+      // Set cookie
+      const cookieOptions = getSessionCookieOptions(req);
+      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+
+      res.json({ success: true, user: buildUserResponse(user) });
+    } catch (error) {
+      console.error("[Auth] Demo login failed:", error);
+      res.status(500).json({ error: "Demo login failed" });
+    }
+  });
+
   // Establish session cookie from Bearer token
   // Used by iframe preview: frontend receives token via postMessage, then calls this endpoint
   // to get a proper Set-Cookie response from the backend (3000-xxx domain)
