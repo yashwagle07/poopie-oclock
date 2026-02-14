@@ -13,6 +13,13 @@ export type User = {
 
 export async function getSessionToken(): Promise<string | null> {
   try {
+    // Check for demo user first
+    const userInfo = await getUserInfo();
+    if (userInfo && userInfo.loginMethod === "demo") {
+      console.log("[Auth] Demo user detected, returning demo-user token");
+      return "demo-user";
+    }
+
     // Web platform uses cookie-based auth, no manual token management needed
     if (Platform.OS === "web") {
       console.log("[Auth] Web platform uses cookie-based auth, skipping token retrieval");

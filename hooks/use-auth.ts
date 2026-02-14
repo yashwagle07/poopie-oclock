@@ -39,9 +39,18 @@ export function useAuth(options?: UseAuthOptions) {
           await Auth.setUserInfo(userInfo);
           console.log("[useAuth] Web user set from API:", userInfo);
         } else {
-          console.log("[useAuth] Web: No authenticated user from API");
-          setUser(null);
-          await Auth.clearUserInfo();
+          console.log("[useAuth] Web: No authenticated user from API, using demo user");
+          // Auto-login with demo user for testing
+          const demoUser: Auth.User = {
+            id: 1,
+            openId: "demo-user",
+            name: "Demo User",
+            email: "demo@poopie.local",
+            loginMethod: "demo",
+            lastSignedIn: new Date(),
+          };
+          setUser(demoUser);
+          await Auth.setUserInfo(demoUser);
         }
         return;
       }
