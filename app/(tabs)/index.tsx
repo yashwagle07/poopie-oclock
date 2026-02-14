@@ -91,11 +91,30 @@ export default function HomeScreen() {
     },
   });
 
-  const handleArmSurprise = () => {
+  const handleArmSurprise = async () => {
+    // If not authenticated yet, trigger a quick login and retry
     if (!isAuthenticated) {
-      // This shouldn't happen with auto-login, but just in case
-      alert("Loading... please wait a moment and try again!");
-      return;
+      try {
+        const { getApiBaseUrl } = await import("@/constants/oauth");
+        const baseUrl = getApiBaseUrl();
+        const res = await fetch(`${baseUrl}/api/auth/demo-login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+        });
+        if (!res.ok) {
+          alert("Oops! Something went wrong. Try again! 💜");
+          return;
+        }
+        // Reload the page to pick up the new session
+        if (Platform.OS === "web") {
+          window.location.reload();
+          return;
+        }
+      } catch {
+        alert("Oops! Something went wrong. Try again! 💜");
+        return;
+      }
     }
 
     if (Platform.OS !== "web") {
@@ -146,18 +165,12 @@ export default function HomeScreen() {
           className="flex-1 justify-between"
         >
           {/* Header */}
-          <View className="gap-2 mb-8">
+          <View className="mb-8">
             <Text
               className="text-5xl font-black"
               style={{ color: colors.foreground }}
             >
               Poopie O'clock
-            </Text>
-            <Text
-              className="text-lg"
-              style={{ color: colors.muted }}
-            >
-              Random audio surprises just for you 💜
             </Text>
           </View>
 

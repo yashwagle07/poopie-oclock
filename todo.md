@@ -96,3 +96,6 @@
 - [x] Fix audio playback on web (HTML5 Audio fallback)
 - [x] Fix app icon format (convert from webp to PNG)
 - [x] On web: navigate directly to play screen after arming (no push notifications)
+
+- [x] Fix "Loading please wait" error when arming a surprise
+- [x] Remove "Random audio surprises just for you" subtitle copy
