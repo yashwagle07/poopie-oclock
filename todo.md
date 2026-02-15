@@ -104,3 +104,4 @@
 - [x] Fix push notifications not firing on Expo Go / native (switched to TIME_INTERVAL trigger)
 - [x] Increase surprise delay window to 1-30 minutes
 - [x] Remove time display from arm confirmation alert
+- [x] FINAL: Simplify to most essential features and publish
