@@ -1,14 +1,6 @@
 {
-  "buildCommand": "pnpm build",
+  "buildCommand": "pnpm build && pnpm run build:server",
   "outputDirectory": "dist",
-  "framework": "expo",
-  "env": {
-    "DATABASE_URL": "@database_url",
-    "JWT_SECRET": "@jwt_secret"
-  },
-  "functions": {
-    "server/_core/index.ts": {
-      "runtime": "nodejs20.x"
-    }
-  }
+  "framework": "vite",
+  "nodeVersion": "20.x"
 }
