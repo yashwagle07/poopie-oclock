@@ -1,6 +1,5 @@
 {
-  "buildCommand": "pnpm build && pnpm run build:server",
+  "buildCommand": "pnpm build",
   "outputDirectory": "dist",
-  "framework": "vite",
-  "nodeVersion": "20.x"
+  "framework": "vite"
 }
